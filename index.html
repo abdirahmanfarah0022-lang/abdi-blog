@@ -1,1 +1,279 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Abdi Ultimate Blog</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+<style>
+body{
+    font-family:Segoe UI;
+    background:#f3f4f6;
+    margin:0;
+    padding:20px;
+}
+
+h1{margin-bottom:20px;}
+
+textarea{
+    width:100%;
+    padding:10px;
+    border-radius:6px;
+    border:1px solid #ccc;
+}
+
+.upload-label{
+    display:inline-block;
+    padding:8px 14px;
+    background:#2563eb;
+    color:white;
+    border-radius:6px;
+    cursor:pointer;
+    margin-top:10px;
+}
+
+.upload-label:hover{background:#1d4ed8;}
+
+input[type="file"]{display:none;}
+
+.preview img{
+    max-width:200px;
+    margin-top:10px;
+    border-radius:8px;
+}
+
+button{
+    padding:6px 12px;
+    margin-top:10px;
+    margin-right:5px;
+    border:none;
+    border-radius:5px;
+    cursor:pointer;
+}
+
+.publish{ background:#16a34a;color:white; }
+.edit{ background:#f59e0b;color:white; }
+.delete{ background:red;color:white; }
+
+.post{
+    background:white;
+    padding:15px;
+    margin-top:15px;
+    border-radius:8px;
+    box-shadow:0 3px 8px rgba(0,0,0,0.1);
+}
+
+.post img{
+    max-width:100%;
+    margin-top:10px;
+    border-radius:8px;
+}
+
+.date{
+    font-size:12px;
+    color:gray;
+}
+
+/* CALENDAR */
+.calendar{
+    background:white;
+    margin-top:30px;
+    padding:20px;
+    border-radius:10px;
+    box-shadow:0 3px 8px rgba(0,0,0,0.1);
+}
+
+.calendar-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+.calendar-days, .calendar-dates{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    text-align:center;
+    margin-top:10px;
+}
+
+.calendar-days div{
+    font-weight:bold;
+}
+
+.calendar-dates div{
+    padding:8px;
+}
+
+.today{
+    background:#2563eb;
+    color:white;
+    border-radius:50%;
+}
+</style>
+</head>
+
+<body>
+
+<h1>Abdi Professional Blog ✍️📅</h1>
+
+<textarea id="postInput" placeholder="Write your post..."></textarea>
+
+<label class="upload-label">
+    Upload Image
+    <input type="file" id="imageInput" accept="image/*">
+</label>
+
+<div class="preview" id="preview"></div>
+
+<button class="publish" onclick="addOrUpdatePost()">Publish</button>
+
+<div id="posts"></div>
+
+<!-- CALENDAR SECTION -->
+<div class="calendar">
+    <div class="calendar-header">
+        <button onclick="changeMonth(-1)">◀</button>
+        <h3 id="monthYear"></h3>
+        <button onclick="changeMonth(1)">▶</button>
+    </div>
+
+    <div class="calendar-days">
+        <div>Sun</div><div>Mon</div><div>Tue</div>
+        <div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+    </div>
+
+    <div class="calendar-dates" id="calendarDates"></div>
+</div>
+
+<script>
+
+let posts = JSON.parse(localStorage.getItem("posts")) || [];
+let selectedImage = null;
+let editIndex = null;
+let currentDate = new Date();
+
+const imageInput = document.getElementById("imageInput");
+const previewDiv = document.getElementById("preview");
+
+imageInput.addEventListener("change", function(){
+    const file = imageInput.files[0];
+    if(!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e){
+        selectedImage = e.target.result;
+        previewDiv.innerHTML = `<img src="${selectedImage}">`;
+    };
+    reader.readAsDataURL(file);
+});
+
+function getCurrentDate(){
+    return new Date().toLocaleString();
+}
+
+function savePosts(){
+    localStorage.setItem("posts", JSON.stringify(posts));
+}
+
+function displayPosts(){
+    const container = document.getElementById("posts");
+    container.innerHTML = "";
+
+    posts.forEach((post,index)=>{
+        container.innerHTML += `
+        <div class="post">
+            <div class="date">${post.date}</div>
+            <p>${post.text}</p>
+            ${post.image ? `<img src="${post.image}">` : ""}
+            <br>
+            <button class="edit" onclick="editPost(${index})">Edit</button>
+            <button class="delete" onclick="deletePost(${index})">Delete</button>
+        </div>`;
+    });
+}
+
+function addOrUpdatePost(){
+    const text = document.getElementById("postInput").value.trim();
+    if(text === "") return;
+
+    if(editIndex === null){
+        posts.push({
+            text:text,
+            date:getCurrentDate(),
+            image:selectedImage
+        });
+    } else {
+        posts[editIndex].text = text;
+        posts[editIndex].image = selectedImage || posts[editIndex].image;
+        editIndex = null;
+    }
+
+    resetForm();
+    savePosts();
+    displayPosts();
+}
+
+function editPost(index){
+    document.getElementById("postInput").value = posts[index].text;
+    selectedImage = posts[index].image;
+    previewDiv.innerHTML = selectedImage ? `<img src="${selectedImage}">` : "";
+    editIndex = index;
+}
+
+function deletePost(index){
+    posts.splice(index,1);
+    savePosts();
+    displayPosts();
+}
+
+function resetForm(){
+    document.getElementById("postInput").value="";
+    previewDiv.innerHTML="";
+    imageInput.value="";
+    selectedImage=null;
+}
+
+/* CALENDAR FUNCTIONS */
+function renderCalendar(){
+    const monthYear=document.getElementById("monthYear");
+    const datesContainer=document.getElementById("calendarDates");
+
+    const year=currentDate.getFullYear();
+    const month=currentDate.getMonth();
+
+    const firstDay=new Date(year,month,1).getDay();
+    const lastDate=new Date(year,month+1,0).getDate();
+
+    monthYear.innerText=currentDate.toLocaleString('default',{month:'long'})+" "+year;
+    datesContainer.innerHTML="";
+
+    for(let i=0;i<firstDay;i++){
+        datesContainer.innerHTML+="<div></div>";
+    }
+
+    for(let d=1;d<=lastDate;d++){
+        const today=new Date();
+        let className="";
+
+        if(d===today.getDate() &&
+           month===today.getMonth() &&
+           year===today.getFullYear()){
+            className="today";
+        }
+
+        datesContainer.innerHTML+=`<div class="${className}">${d}</div>`;
+    }
+}
+
+function changeMonth(step){
+    currentDate.setMonth(currentDate.getMonth()+step);
+    renderCalendar();
+}
+
+displayPosts();
+renderCalendar();
+
+</script>
+
+</body>
+</html>
